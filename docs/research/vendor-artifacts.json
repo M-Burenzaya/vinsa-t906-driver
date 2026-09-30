@@ -1,0 +1,152 @@
+[
+  {
+    "original_path": "downloads/20250509-t906Manual.pdf",
+    "path": "docs/vendor/manuals/20250509-t906Manual.pdf",
+    "bytes": 4386274,
+    "sha256": "c5097317f05edbc12fc027003d7daa2e9ec491eefb1cd15858ae5d36c3136be0"
+  },
+  {
+    "original_path": "downloads/autorun.inf",
+    "path": "downloads/vendor-media/autorun.inf",
+    "bytes": 155,
+    "sha256": "b9d33a5ef33e6d7373837fd09f144298554b51dfbd3ae68186f84c7921fd8ce4"
+  },
+  {
+    "original_path": "downloads/MacOS Driver/Mac_tablet_driver.dmg",
+    "path": "downloads/vendor-media/MacOS Driver/Mac_tablet_driver.dmg",
+    "bytes": 273762,
+    "sha256": "984ae0ad8962a195965800a4b0a9f6fca600aae8adcfe9fbe3760340e666ecfb"
+  },
+  {
+    "original_path": "downloads/MyTablet.ico",
+    "path": "downloads/vendor-media/MyTablet.ico",
+    "bytes": 2291,
+    "sha256": "9738902e980269cbe44b352b3cf28fe367b0bcd6b9ae5ee47bb29c8fb6ebe256"
+  },
+  {
+    "original_path": "downloads/MyTablet/LanName.txt",
+    "path": "downloads/windows/installed/MyTablet/LanName.txt",
+    "bytes": 296,
+    "sha256": "51f949a87ac2c0b3c7cd92a4d031a2cf8f2aff77209f13f05ed228dfa19b24c0"
+  },
+  {
+    "original_path": "downloads/MyTablet/LanSetup.ini",
+    "path": "downloads/windows/installed/MyTablet/LanSetup.ini",
+    "bytes": 325,
+    "sha256": "17df261e2a96fea43686db757d22cc2ac0e564abecb8265b7dd02e9db11c918d"
+  },
+  {
+    "original_path": "downloads/MyTablet/PenShape.bmp",
+    "path": "downloads/windows/installed/MyTablet/PenShape.bmp",
+    "bytes": 87374,
+    "sha256": "1ed41086bbab88129067d5813ec29b34c3a5ac1649659fe0c06d8e34b8fa1a8f"
+  },
+  {
+    "original_path": "downloads/MyTablet/reg_ink.bat",
+    "path": "downloads/windows/installed/MyTablet/reg_ink.bat",
+    "bytes": 470,
+    "sha256": "676eafdf789f804c614b6bd4186025ec8d938ebc0d9f9218b61b5f896411d5d5"
+  },
+  {
+    "original_path": "downloads/MyTablet/T906_2023.dat",
+    "path": "downloads/windows/installed/MyTablet/T906_2023.dat",
+    "bytes": 64,
+    "sha256": "9ba07bcbf1ea2c3ef89958c91f3a0102407da8f3229e5ec5acdcbcbc646e173f"
+  },
+  {
+    "original_path": "downloads/MyTablet/T906Def.bin",
+    "path": "downloads/windows/installed/MyTablet/T906Def.bin",
+    "bytes": 64,
+    "sha256": "a0fad483d92a080e71a39aeeb4f882ef1d3308e243b5d9b646be82fd660d9517"
+  },
+  {
+    "original_path": "downloads/MyTablet/TabletCom_vc.dll",
+    "path": "downloads/windows/installed/MyTablet/TabletCom_vc.dll",
+    "bytes": 45056,
+    "sha256": "56fc575d86550cb2a7262adcfe5926ea3851db3c405f9517c18b4a6f4005607c"
+  },
+  {
+    "original_path": "downloads/MyTablet/TabletLan.txt",
+    "path": "downloads/windows/installed/MyTablet/TabletLan.txt",
+    "bytes": 33432,
+    "sha256": "8966b52b90487fae30394330d9ddce9144da56b20cefb5348f534e031e793820"
+  },
+  {
+    "original_path": "downloads/MyTablet/TabletService.exe",
+    "path": "downloads/windows/installed/MyTablet/TabletService.exe",
+    "bytes": 1118208,
+    "sha256": "083819bcafd2f95faed64f4ae9ec0cf6d152677a23cc4a6984f47a7c5d06097b"
+  },
+  {
+    "original_path": "downloads/MyTablet/TabletWheel.ini",
+    "path": "downloads/windows/installed/MyTablet/TabletWheel.ini",
+    "bytes": 546,
+    "sha256": "9faa7d255f4d17b8e6695cc0ae9480a5b7b403e541d41cea1b8431d70a1699c7"
+  },
+  {
+    "original_path": "downloads/MyTablet/TSetting.ini",
+    "path": "downloads/windows/installed/MyTablet/TSetting.ini",
+    "bytes": 223,
+    "sha256": "6635ca23b5c7ec541a173934b76798154238587f2391f1641e95753c97ba134e"
+  },
+  {
+    "original_path": "downloads/MyTablet/TStart.exe",
+    "path": "downloads/windows/installed/MyTablet/TStart.exe",
+    "bytes": 15872,
+    "sha256": "a3699861d7a96e505c85e0e5c617a15a7b4b9d4d28e3d513374c8cc9c8d1511e"
+  },
+  {
+    "original_path": "downloads/MyTablet/Uninstall Information/unins000.dat",
+    "path": "downloads/windows/installed/MyTablet/Uninstall Information/unins000.dat",
+    "bytes": 9889,
+    "sha256": "de472f66e31f9e5b84ea86a82d776f3561a8543863ed1c66fdadffa31d9c655c"
+  },
+  {
+    "original_path": "downloads/MyTablet/Uninstall Information/unins000.exe",
+    "path": "downloads/windows/installed/MyTablet/Uninstall Information/unins000.exe",
+    "bytes": 1202499,
+    "sha256": "e09931bfccd116a9ee5cc869be8b3b48a2a87640a9efeb41648d2a71c992afb1"
+  },
+  {
+    "original_path": "downloads/MyTablet/website.txt",
+    "path": "downloads/windows/installed/MyTablet/website.txt",
+    "bytes": 19,
+    "sha256": "3150208aada9df3168005ff4c66e4e67eb306c4bfe6dbbd9a895650d4d5cd2c4"
+  },
+  {
+    "original_path": "downloads/Pen Driver Download.url",
+    "path": "downloads/vendor-media/Pen Driver Download.url",
+    "bytes": 122,
+    "sha256": "fc4339212d64335ca2dcae9636922f88da53a90ce42fb52406bc30992d602f0a"
+  },
+  {
+    "original_path": "downloads/readme.txt",
+    "path": "docs/vendor/instructions/readme.txt",
+    "bytes": 1074,
+    "sha256": "c2f13d6b3796d27170a0ed6667c7f8f4970ed257136cb4827df18e75741bbea9"
+  },
+  {
+    "original_path": "downloads/Tablet_Driver_Win_4.8.1.905/Setup.exe",
+    "path": "downloads/windows/installers/4.8.1.905/Setup.exe",
+    "bytes": 1237217,
+    "sha256": "e61b408b3f01153149755cf219630444b2b34bfdc844e02991ff025a02df8b55"
+  },
+  {
+    "original_path": "downloads/Windows Driver/Setup.exe",
+    "path": "downloads/vendor-media/Windows Driver/Setup.exe",
+    "bytes": 1236787,
+    "sha256": "22ddd1249dc8afa3bfda371a6f13dece1ae201213d985fde1a367576febdb421"
+  },
+  {
+    "original_path": "downloads/简要说明.txt",
+    "path": "docs/vendor/instructions/简要说明.txt",
+    "bytes": 1015,
+    "sha256": "7047bffb786c23b728787b0e65dd166495faa0dc900fe54ae4c51ac317eaeea9"
+  },
+  {
+    "original_path": "downloads/驱动下载.url",
+    "path": "downloads/vendor-media/驱动下载.url",
+    "bytes": 120,
+    "sha256": "082352465bc68117e4e935ccc4dc794ddcca2df4586663e091283a64364e65a8"
+  }
+]

@@ -1,0 +1,23 @@
+# Generated analysis and extracted vendor files
+/artifacts/
+
+# Build and dependency output
+/build/
+/dist/
+/out/
+/node_modules/
+/.venv/
+*.egg-info/
+__pycache__/
+*.py[cod]
+
+# Local settings and secrets
+/.env
+/.env.*
+!/.env.example
+/.idea/
+
+# Operating-system metadata
+Thumbs.db
+Desktop.ini
+.DS_Store

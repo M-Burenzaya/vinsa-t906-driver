@@ -1,0 +1,14 @@
+* text=auto
+
+# Keep maintained code and documentation consistent across platforms.
+*.ps1 text eol=lf
+*.py text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+/.gitignore text eol=lf
+/.gitattributes text eol=lf
+
+# Preserve all supplied vendor files byte for byte, including text resources.
+/downloads/** -text
+/docs/vendor/** -text

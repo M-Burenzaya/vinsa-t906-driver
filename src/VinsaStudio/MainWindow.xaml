@@ -1,0 +1,45 @@
+<Window x:Class="VinsaStudio.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:VinsaStudio.Controls" Title="Vinsa Studio" Width="1160" Height="820" MinWidth="900" MinHeight="690" Background="#10161C" FontFamily="Segoe UI" WindowStartupLocation="CenterScreen">
+  <Grid>
+    <Grid.ColumnDefinitions><ColumnDefinition Width="210"/><ColumnDefinition/></Grid.ColumnDefinitions>
+    <Border Background="#161E25" Padding="24,30"><DockPanel>
+      <StackPanel DockPanel.Dock="Top"><TextBlock Text="VINSA" FontSize="27" FontWeight="Bold" Foreground="{StaticResource Mint}"/><TextBlock Text="STUDIO" Foreground="#91A0AC" FontSize="12" Margin="2,4,0,34"/>
+        <Button Content="Mapping" Click="MappingClick" HorizontalContentAlignment="Left" Margin="0,0,0,10"/>
+        <Button Content="Button assignments" Click="ButtonsClick" Margin="0,0,0,10"/>
+        <Button Content="Pressure &amp; ink" Click="PressureClick" Margin="0,0,0,10"/>
+        <Button Content="Device" Click="DeviceClick" Margin="0,0,0,10"/>
+      </StackPanel>
+      <StackPanel VerticalAlignment="Bottom"><TextBlock Text="T906 / WINDOWS" Foreground="#91A0AC" FontSize="11"/><TextBlock Text="Community reconstruction" Foreground="#91A0AC" FontSize="11" Margin="0,6,0,0" TextWrapping="Wrap"/></StackPanel>
+    </DockPanel></Border>
+    <Grid Grid.Column="1" Margin="30,28,30,20">
+      <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <DockPanel Margin="0,0,0,22"><StackPanel><TextBlock x:Name="PageTitle" Text="Your drawing space" FontSize="30" FontWeight="SemiBold"/><TextBlock x:Name="PageSubtitle" Text="Choose where your pen moves, and where it lands." Foreground="#91A0AC" Margin="0,6,0,0"/></StackPanel><Border HorizontalAlignment="Right" Background="#213B34" CornerRadius="12" Padding="12,8" Margin="20,0,0,0" VerticalAlignment="Top"><TextBlock x:Name="ConnectionBadge" Text="Checking tablet…" Foreground="{StaticResource Mint}" FontSize="12"/></Border></DockPanel>
+      <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+        <Grid>
+          <StackPanel x:Name="MappingPage">
+            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="18" Margin="0,0,0,12">
+              <StackPanel>
+                <DockPanel><TextBlock Text="Screen destination" FontSize="18" FontWeight="SemiBold"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><ComboBox x:Name="MonitorChoice" Width="168" Margin="0,0,12,0" SelectionChanged="MonitorChanged"/><Button x:Name="CaptureButton" Content="Refresh preview" Click="CaptureClick" Padding="10,5"/></StackPanel></DockPanel>
+                <local:MappingSurface x:Name="ScreenSurface" Height="195" Margin="0,10,0,8"/>
+                <Expander Header="Exact screen coordinates" Foreground="#A9B5BF"><StackPanel x:Name="ScreenFields" Orientation="Horizontal" Margin="0,10,0,0"/></Expander>
+              </StackPanel>
+            </Border>
+            <Border Background="{StaticResource Surface}" CornerRadius="14" Padding="18" Margin="0,0,0,12">
+              <StackPanel>
+                <DockPanel><TextBlock Text="Tablet active area" FontSize="18" FontWeight="SemiBold"/><StackPanel Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Full tablet" Click="FullTabletClick" Padding="10,5"/><Button Content="Cycle presets" Click="CenterClick" ToolTip="Full, inset, centered and original T906 16:9 areas" Padding="10,5"/></StackPanel></DockPanel>
+                <local:MappingSurface x:Name="TabletSurface" IsTablet="True" Height="210" Margin="0,10,0,8"/>
+                <Expander Header="Exact tablet coordinates" Foreground="#A9B5BF"><StackPanel x:Name="TabletFields" Orientation="Horizontal" Margin="0,10,0,0"/></Expander>
+              </StackPanel>
+            </Border>
+            <TextBlock Text="Drag inside an area to move it. Drag a handle to resize. Drag outside it to draw a new selection." TextWrapping="Wrap" Foreground="#91A0AC" FontSize="12" Margin="0,0,0,8"/>
+            <WrapPanel Margin="0,0,0,8"><CheckBox x:Name="InkCheck" Content="Windows Ink" Checked="FlagChanged" Unchecked="FlagChanged"/><CheckBox x:Name="LeftCheck" Content="Left handed" Checked="FlagChanged" Unchecked="FlagChanged"/><Button Content="Reset both areas" Click="FullClick" Padding="10,5"/></WrapPanel>
+            <WrapPanel><Button Content="Load settings…" Click="LoadClick"/><Button Content="Save copy…" Click="SaveClick" Background="#85E2C3" Foreground="#10251D"/><Button x:Name="ApplyButton" Content="Apply mapping…" Click="ApplyClick" IsEnabled="False"/></WrapPanel>
+          </StackPanel>
+          <StackPanel x:Name="ButtonsPage" Visibility="Collapsed"><Border Background="{StaticResource Surface}" CornerRadius="14" Padding="26"><StackPanel><TextBlock Text="Keep the shortcuts that work" FontSize="22" FontWeight="SemiBold"/><TextBlock Text="The vendor app already supports these assignments. Their storage format and device commands still need investigation before this app can edit them reliably." TextWrapping="Wrap" Foreground="#A9B5BF" Margin="0,16,0,24"/><TextBlock Text="Pen upper button     Ctrl + Z (your observed assignment)" Margin="0,0,0,14"/><TextBlock Text="Pen lower button     Right click (your observed assignment)" Margin="0,0,0,26"/><TextBlock Text="Tablet shortcut keys" FontSize="18"/><UniformGrid x:Name="ShortcutTiles" Columns="5" Margin="0,16,0,22"><Border Background="#29353E" Margin="4" Padding="12"><TextBlock Text="1" HorizontalAlignment="Center"/></Border><Border Background="#29353E" Margin="4" Padding="12"><TextBlock Text="2" HorizontalAlignment="Center"/></Border><Border Background="#29353E" Margin="4" Padding="12"><TextBlock Text="3" HorizontalAlignment="Center"/></Border><Border Background="#29353E" Margin="4" Padding="12"><TextBlock Text="4" HorizontalAlignment="Center"/></Border><Border Background="#29353E" Margin="4" Padding="12"><TextBlock Text="5" HorizontalAlignment="Center"/></Border></UniformGrid><TextBlock Text="Assignment editing is unavailable until the protocol is verified. Use MyTablet to change these settings for now." Foreground="{StaticResource Mint}" TextWrapping="Wrap"/></StackPanel></Border></StackPanel>
+          <StackPanel x:Name="PressurePage" Visibility="Collapsed"><Border Background="{StaticResource Surface}" CornerRadius="14" Padding="22"><StackPanel><DockPanel><TextBlock Text="Live pen pressure" FontSize="18"/><TextBlock x:Name="PressureValue" Text="Waiting for pen input" Foreground="{StaticResource Mint}" HorizontalAlignment="Right"/></DockPanel><Canvas x:Name="PressureChart" Height="110" Background="#10171D" Margin="0,16,0,16" ClipToBounds="True"><Polyline x:Name="PressureLine" Stroke="#85E2C3" StrokeThickness="2"/></Canvas><TextBlock Text="Draw below with the pen. The trace shows pressure delivered by Windows; mouse input does not count as pressure." Foreground="#A9B5BF" TextWrapping="Wrap" Margin="0,0,0,14"/><InkCanvas x:Name="TestInk" Height="260" Background="#F0F4F3" PreviewStylusDown="PenInput" PreviewStylusMove="PenInput" PreviewStylusUp="PenUp"/><Button Content="Clear drawing" Click="ClearClick" HorizontalAlignment="Left" Margin="0,16,0,20"/><TextBlock Text="Pressure fine tune" FontSize="18"/><TextBlock Text="The vendor pressure curve is not decoded yet. This tester reads actual Windows pen input and does not modify the tablet’s pressure settings." Foreground="#A9B5BF" TextWrapping="Wrap" Margin="0,10,0,0"/></StackPanel></Border></StackPanel>
+          <StackPanel x:Name="DevicePage" Visibility="Collapsed"><Border Background="{StaticResource Surface}" CornerRadius="14" Padding="26"><StackPanel><DockPanel><TextBlock Text="Connected tablet" FontSize="22"/><Button Content="Refresh" Click="RefreshClick" HorizontalAlignment="Right"/></DockPanel><TextBlock x:Name="DeviceDetails" Text="Checking…" TextWrapping="Wrap" Margin="0,22,0,20" FontFamily="Consolas"/><TextBlock Text="Runs with your normal Windows account" Foreground="{StaticResource Mint}" FontSize="18"/><TextBlock Text="Device discovery reads metadata only. Applying mapping sends the three reconstructed reports only after you confirm. Automatic startup and reconnection writes are not enabled." Foreground="#A9B5BF" TextWrapping="Wrap" Margin="0,12,0,0"/></StackPanel></Border></StackPanel>
+        </Grid>
+      </ScrollViewer>
+      <Border Grid.Row="2" BorderBrush="#2B3740" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,20,0,0"><TextBlock x:Name="StatusText" Text="Ready · Local settings preview" Foreground="#91A0AC" FontSize="12" TextWrapping="Wrap"/></Border>
+    </Grid>
+  </Grid>
+</Window>

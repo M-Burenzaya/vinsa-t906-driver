@@ -1,6 +1,6 @@
 """Compare reconstructed encoders to isolated original x86 packing blocks.
 
-Optional dependency: ``uv run --no-project --with unicorn python scripts/verify_protocol_oracle.py``.
+Optional dependency: ``uv run --with unicorn python scripts/verify_protocol_oracle.py``.
 This emulates only verified arithmetic/memory instructions, stopping before
 clock/API code or RET. It never starts the vendor application, calls an API,
 or accesses a tablet. The original file hash and machine blocks are the oracle.
@@ -10,16 +10,15 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-import random
+import json
+import subprocess
+import tempfile
 import struct
 import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
 
-from vinsa_t906.protocol import encode_screen_mapping, encode_tablet_mapping
-from vinsa_t906.settings import MappingRectangle
 
 
 SOURCE = ROOT / "downloads/windows/installed/MyTablet/TabletService.exe"
@@ -30,7 +29,6 @@ OBJECT_ADDRESS, OBJECT_SIZE = 0x600000, 0x1000
 STACK_ADDRESS, STACK_SIZE = 0x700000, 0x10000
 STACK_TOP = STACK_ADDRESS + STACK_SIZE - 16
 MAX_INSTRUCTIONS = 256
-SEED = 0x906  # Stable random samples, no external input.
 
 
 def code_section(raw: bytes) -> tuple[int, bytes]:
@@ -61,31 +59,12 @@ def code_section(raw: bytes) -> tuple[int, bytes]:
     raise ValueError("CODE section not found")
 
 
-def cases() -> list[MappingRectangle]:
-    """Golden full/saved/nibble-boundary cases plus 1000 random valid maps."""
-    rectangles = [
-        MappingRectangle(),
-        MappingRectangle(650, 650, 3500, 3500),
-        MappingRectangle(1753, 0, 4095, 4095),
-        MappingRectangle(255, 256, 257, 4095),
-        MappingRectangle(4094, 4094, 4095, 4095),
-        MappingRectangle(0, 0, 1, 1),
-        MappingRectangle(256, 255, 4095, 257),
-    ]
-    generator = random.Random(SEED)
-    for _ in range(1000):
-        left, right = sorted(generator.sample(range(4096), 2))
-        top, bottom = sorted(generator.sample(range(4096), 2))
-        rectangles.append(MappingRectangle(left, top, right, bottom))
-    return rectangles
-
-
 def main() -> int:
     try:
         from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE, UC_PROT_READ, UC_PROT_WRITE, UC_PROT_EXEC
         from unicorn.x86_const import UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP, UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_EFLAGS
     except ImportError:
-        print("Optional dependency missing. Run: uv run --no-project --with unicorn python scripts/verify_protocol_oracle.py", file=sys.stderr)
+        print("Optional dependency missing. Run: uv run --with unicorn python scripts/verify_protocol_oracle.py", file=sys.stderr)
         return 2
 
     raw = SOURCE.read_bytes()
@@ -112,7 +91,7 @@ def main() -> int:
     emulator.hook_add(UC_HOOK_CODE, guard)
     registers = (UC_X86_REG_EAX, UC_X86_REG_EBX, UC_X86_REG_ECX, UC_X86_REG_EDX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 
-    def run(rectangle: MappingRectangle, *, screen: bool, ink_mode: bool = False) -> bytes:
+    def run(rectangle: dict, *, screen: bool, ink_mode: bool = False) -> bytes:
         # Fresh object, stack and registers per comparison; no prior-case state.
         emulator.mem_write(OBJECT_ADDRESS, bytes(OBJECT_SIZE))
         emulator.mem_write(STACK_ADDRESS, bytes(STACK_SIZE))
@@ -123,12 +102,12 @@ def main() -> int:
         emulator.reg_write(UC_X86_REG_EAX, OBJECT_ADDRESS)
         emulator.mem_write(OBJECT_ADDRESS + 0x54, b"\x08")
         if screen:
-            fields = (rectangle.top, rectangle.left, rectangle.right - rectangle.left, rectangle.bottom - rectangle.top)
+            fields = (rectangle["Top"], rectangle["Left"], rectangle["Right"] - rectangle["Left"], rectangle["Bottom"] - rectangle["Top"])
             emulator.mem_write(OBJECT_ADDRESS + 0x24, struct.pack("<4H", *fields))
             emulator.mem_write(OBJECT_ADDRESS + 0x55, bytes((3 if ink_mode else 1,)))
             start, stop = SCREEN_START, SCREEN_STOP
         else:
-            fields = (rectangle.left, rectangle.top, rectangle.right, rectangle.bottom)
+            fields = (rectangle["Left"], rectangle["Top"], rectangle["Right"], rectangle["Bottom"])
             emulator.mem_write(OBJECT_ADDRESS + 4, struct.pack("<4I", *fields))
             start, stop = TABLET_START, TABLET_STOP
         active[:] = start, stop
@@ -140,26 +119,26 @@ def main() -> int:
             raise RuntimeError(f"instruction limit reached before packing finished: 0x{pc:x}")
         return bytes(emulator.mem_read(OBJECT_ADDRESS + 0x54, 8))
 
+    # The .NET backend supplies reports; the oracle is the vendor machine code.
+    with tempfile.TemporaryDirectory(prefix="vinsa-oracle-") as temporary:
+        output = Path(temporary) / "vectors.json"
+        subprocess.run(["dotnet", "run", "--project", str(ROOT / "tests/VinsaStudio.CoreChecks"),
+                        "--", "--export", str(output)], check=True, cwd=ROOT)
+        rectangles = json.loads(output.read_text())
     comparisons = 0
-    rectangles = cases()
     for rectangle in rectangles:
-        expected = encode_tablet_mapping(rectangle)
-        observed = run(rectangle, screen=False)
-        if observed != expected:
-            raise AssertionError(f"tablet packing mismatch {rectangle}: {observed.hex()} != {expected.hex()}")
-        comparisons += 1
-        for ink in (False, True):
-            expected = encode_screen_mapping(rectangle, ink_mode=ink)
-            observed = run(rectangle, screen=True, ink_mode=ink)
+        for screen, expected_hex in ((False, rectangle["Reports"][0]), (True, rectangle["Reports"][2])):
+            expected = bytes.fromhex(expected_hex)
+            observed = run(rectangle, screen=screen, ink_mode=expected[1] == 3)
             if observed != expected:
-                raise AssertionError(f"screen packing mismatch {rectangle}, ink={ink}: {observed.hex()} != {expected.hex()}")
+                raise AssertionError(f"packing mismatch {rectangle}: {observed.hex()} != {expected.hex()}")
             comparisons += 1
 
     print(f"Source SHA256: {digest}")
     for name, start, stop in (("tablet", TABLET_START, TABLET_STOP), ("screen", SCREEN_START, SCREEN_STOP)):
         block = code[start - address:stop - address]
         print(f"{name}: 0x{start:x}..0x{stop:x} (exclusive), block SHA256 {hashlib.sha256(block).hexdigest()}")
-    print(f"PASS: {comparisons} encoder comparisons across {len(rectangles)} rectangles (7 golden + 1000 random; seed {SEED}).")
+    print(f"PASS: {comparisons} encoder comparisons across {len(rectangles)} rectangles (deterministic .NET vectors, both screen command modes).")
     print("Only isolated original packing instructions were emulated; no vendor startup, API calls, or device access.")
     return 0
 

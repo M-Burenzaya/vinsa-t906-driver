@@ -1,11 +1,11 @@
 # Source code
 
-`vinsa_t906` is a Python 3.11+ reconstruction with no third-party runtime dependencies:
+`VinsaStudio/` is the maintained .NET 10 / WPF Windows app:
 
-- `settings.py`: lossless vendor settings and opaque state files.
-- `protocol.py`: pure, evidence-backed feature-report encoders.
-- `windows_hid.py`: Windows HID enumeration and explicit feature access.
-- `cli.py`: read, preview, and explicitly apply the reconstructed subset.
-- `gui.py`: local settings editor and report preview.
+- `Core/`: lossless settings, verified mapping reports, native HID access and mapping geometry.
+- `Controls/`: desktop capture and interactive screen/tablet mapping previews.
+- `MainWindow.xaml`: mapping, assignments, pressure tester and device pages.
 
-This is maintained reconstruction source. It does not contain original Delphi source, kernel-driver code, or an input pen-report decoder. Vendor files and generated decompiler output remain outside this directory.
+The tablet illustration is schematic; its physical aspect ratio has not been verified. The display preview uses actual monitor bounds, including negative origins. Desktop images stay in memory during normal operation.
+
+This is reconstructed implementation source, not recovered Delphi source. Generated pseudocode and vendor originals are kept separately. Python is used only by independent research scripts.

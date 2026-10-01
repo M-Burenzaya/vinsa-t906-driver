@@ -1,7 +1,9 @@
-# Tests
+# Verification
 
-Run with `PYTHONPATH=src python -m unittest discover -s tests -v` (set `$env:PYTHONPATH='src'` in PowerShell first).
+Run `dotnet run --project tests/VinsaStudio.CoreChecks -- --devices` for the 30 backend checks and read-only device inventory. Checks include lossless settings, original-file protection, golden report bytes, device eligibility, monitor normalization and 9,000 movement/resize cases. They never send tablet commands.
 
-Tests cover saved vendor settings, lossless edits, invalid bounds, golden feature-report vectors, randomized packed-value roundtrips, explicit CLI write behavior, partial failures, device selection, ctypes layouts, and mocked HID lifecycle/capability checks. They do not send hardware reports.
+Build with `dotnet build src/VinsaStudio -c Release`. Run the published app with `--smoke-test` to render all four pages and exit. Optional `--preview-dir artifacts/ui/<new-folder>` captures the desktop preview and saves rendered pages locally; choose a fresh folder. A regular smoke test does not capture desktop pixels.
 
-`scripts/verify_protocol_oracle.py` supplies an additional independent check against bounded emulation of the vendor's actual x86 packing instructions. It needs the optional Unicorn package; the runtime application does not.
+`scripts/verify_protocol_oracle.py` compares exported .NET reports against isolated vendor x86 instructions using optional Unicorn. Run `uv run --with unicorn python scripts/verify_protocol_oracle.py`. It checks 2,000 reports, never starts vendor software and never accesses hardware.
+
+Real pen pressure, mapping application, reconnect behavior and full vendor initialization still require separate hardware verification.

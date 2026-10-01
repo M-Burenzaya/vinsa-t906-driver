@@ -8,6 +8,9 @@
 /node_modules/
 /.venv/
 *.egg-info/
+# .NET build intermediates stay local
+**/bin/
+**/obj/
 __pycache__/
 *.py[cod]
 

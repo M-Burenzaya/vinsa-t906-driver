@@ -1,51 +1,50 @@
 # Vinsa T906 driver
 
-An evidence-backed Python reconstruction of the tablet's configuration files and HID feature-report encoders, with a Windows transport, CLI, and local settings editor. REA/Ghidra was used to analyze the supplied native Delphi `TabletService.exe`.
+Vinsa Studio is a .NET 10 / WPF Windows configuration app, backed by an evidence-based reconstruction of the tablet's mapping protocol. Research scripts preserve the extraction workflow and independent protocol verification. REA/Ghidra was used to analyze the supplied native Delphi `TabletService.exe`.
 
 This is new implementation source, not the original vendor source or a complete replacement for the vendor application. Mapping and mode reports are reconstructed; pen input, pressure curves, tilt, hotkey dispatch, Wintab/Windows Ink integration, and full device initialization are not implemented. Windows continues to provide the tablet's existing HID input support.
 
-## Run from source
-
-Requires Python 3.11+; no third-party runtime packages. Windows is required for HID access. The GUI uses Python's Tkinter.
+## Windows desktop app
 
 ```powershell
-python scripts/vinsa.py devices
-python scripts/vinsa.py settings downloads/windows/installed/MyTablet/TSetting.ini
-python scripts/vinsa.py plan --settings downloads/windows/installed/MyTablet/TSetting.ini
-python scripts/vinsa.py gui --settings downloads/windows/installed/MyTablet/TSetting.ini
+./scripts/Start-VinsaStudio.ps1 -Rebuild
 ```
 
-`plan` does not access hardware. `apply` without `--write` reads device metadata and previews the reports using its actual USB version:
+This builds into the ignored `build/VinsaStudio/` directory and opens the native Windows app. Building requires the .NET 10 SDK; running the published app requires the .NET 10 Windows Desktop runtime. It does not require Python. Run the launcher again without `-Rebuild` to reuse the build. It reads the installed vendor INI when available, otherwise the supplied snapshot; `-SettingsPath` selects another file.
 
-```powershell
-python scripts/vinsa.py apply --settings downloads/windows/installed/MyTablet/TSetting.ini
-```
+- Mapping: a desktop snapshot in the actual monitor layout, display selection, movable regions with eight resize handles, a tablet illustration, exact coordinates, presets, Ink/handedness, and saving a new settings copy. Refresh preview takes a new snapshot; it stays in memory during normal use. Existing files are never overwritten.
+- Device: read-only HID detection. Applying mapping is a separate explicit action: only three reconstructed reports, not full vendor initialization. Writes are not yet hardware-validated; automatic startup/reconnection writes are not enabled.
+- Pressure & ink: drawing canvas and live history from Windows stylus pressure. Mouse/hover input is excluded from the graph and Windows must report pressure support. Actual pen testing is still needed; unavailable pressure is not replaced with simulated values.
+- Buttons: ten-key layout and reported pen assignments. Hardware assignment editing and vendor pressure fine tuning are not yet implemented.
 
-To explicitly send the reconstructed mapping/mode reports, add `--write` to that command. Hardware writes have not been validated on this tablet. The operation sends three feature reports, does not apply smoothness or hotkeys, and is not the full vendor startup sequence. A partial failure is reported rather than described as success. If more than one eligible tablet is connected, use `--device-path` with a path from `devices`.
-
-The GUI loads and saves local settings copies and previews reports; it does not change hardware. Do not treat a successful feature read as decoded current settings: the report remains opaque.
+The app manifest uses `asInvoker`: it does not request administrator privileges. This is separate from publisher signing/reputation; the current build is not code-signed.
 
 ## Verify
 
-```powershell
-$env:PYTHONPATH = 'src'
-python -m unittest discover -s tests -v
-```
-
-The optional independent oracle compares our encoders against bounded emulation of the vendor's actual x86 packing instructions. It needs Unicorn only for this verification:
+Verify the .NET backend and read device metadata:
 
 ```powershell
-uv run --no-project --with unicorn python scripts/verify_protocol_oracle.py
+dotnet run --project tests/VinsaStudio.CoreChecks -- --devices
+dotnet build src/VinsaStudio -c Release
+./build/VinsaStudio/VinsaStudio.exe --smoke-test --settings downloads/windows/installed/MyTablet/TSetting.ini
 ```
 
-Build an installable wheel with `uv build --out-dir build`, or install into your own virtual environment with `python -m pip install .`. The `vinsa-t906` command exposes the same CLI after installation.
+The backend passes 30 checks, including 9,000 drag/resize scenarios. The GUI smoke test renders all four pages without applying settings. Automated tests do not verify real pen pressure or hardware writes.
+
+The optional independent oracle compares .NET encoders against bounded emulation of the vendor's actual x86 packing instructions. It requires Python and Unicorn only for research verification:
+
+```powershell
+uv run --with unicorn python scripts/verify_protocol_oracle.py
+```
+
+This passes 2,000 comparisons across 1,000 deterministic rectangles, covering both screen commands. The former Python app, CLI, packaging and tests have been removed; the Windows app uses only .NET.
 
 See [analysis and limitations](docs/research/analysis.md) for target hashes, procedure addresses, REA Evidence IDs, and coverage.
 
 ## Layout
 
 ```text
-src/vinsa_t906/      Maintained reconstruction source
+src/VinsaStudio/     .NET Windows desktop app and native backend
 tests/               Implementation tests and synthetic fixtures
 scripts/             Development and artifact inspection tools
 docs/research/       Evidence, findings, and artifact hashes
@@ -77,6 +76,6 @@ New-Item -ItemType Directory -Path artifacts -Force
 ./scripts/Get-ArtifactInventory.ps1 -OutputPath artifacts/inventory.json
 ```
 
-REA is installed globally, with user-level Ghidra 12.1.4 and Java 21 configured for native analysis. `rea --help` lists its CLI commands. Complete REA exports and the reusable snapshot are in ignored `artifacts/rea/`; reviewed findings are in `docs/research/`.
+REA is installed globally, with user-level Ghidra 12.1.4 and Java 21 configured for native analysis. `rea --help` lists its CLI commands. Whole-package decompilation is in ignored `artifacts/mytablet/`, with the reviewed [program guide](docs/research/mytablet-program.md) and [feature map](docs/research/mytablet-feature-map.md). The canonical service export is `tablet-service-seeded/`: 4,256 discovered functions; the launcher and DLL add 226. This is static pseudocode, not original or buildable source. Earlier REA evidence and the reusable snapshot remain in `artifacts/rea/`.
 
 The root MIT license covers this project's implementation. It does not grant new rights to the unchanged vendor binaries and documents supplied under `downloads/` and `docs/vendor/`.

@@ -12,3 +12,7 @@
 # Preserve all supplied vendor files byte for byte, including text resources.
 /downloads/** -text
 /docs/vendor/** -text
+*.cs text eol=lf
+*.csproj text eol=lf
+*.xaml text eol=lf
+*.manifest text eol=lf

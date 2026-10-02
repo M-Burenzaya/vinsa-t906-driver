@@ -8,4 +8,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>VinsaStudio</AssemblyName>
   </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="../../downloads/windows/installed/MyTablet/PenShape.bmp" Link="Assets/PenShape.bmp" />
+  </ItemGroup>
 </Project>

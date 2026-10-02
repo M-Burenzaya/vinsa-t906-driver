@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Shapes;
 using Microsoft.Win32;
 using VinsaStudio.Core;
 using VinsaStudio.Controls;
@@ -18,26 +17,73 @@ public partial class MainWindow : Window
     private readonly TextBox[] _screenFields = new TextBox[4];
     private readonly TextBox[] _tabletFields = new TextBox[4];
     private IReadOnlyList<HidTablet> _devices = [];
-    private readonly Queue<double> _pressure = new();
+    private readonly PressureHistory _pressure = new();
+    private readonly System.Diagnostics.Stopwatch _pressureClock = System.Diagnostics.Stopwatch.StartNew();
+    private readonly System.Windows.Threading.DispatcherTimer _pressureTimer = new() { Interval=TimeSpan.FromMilliseconds(50) };
+    private StylusDevice? _activePen;
+    private bool _penContact;
+    private double PressureTime => _pressureClock.Elapsed.TotalSeconds;
     private bool _updating, _dirty, _refreshing;
     private DesktopSnapshot? _desktop;
     private bool _capturing;
     private int _tabletPresetIndex;
+    private PenProfile _penProfile=PenProfile.Defaults;
+    private PenBindingsWindow? _penEditor;
+    private readonly string _penProfilePath=System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"VinsaStudio","pen-profile.json");
+    private bool _started;
+    private readonly MappingWindow _mapping;
+    private readonly KeysWindow _keys;
+    private MappingSurface ScreenSurface => _mapping.ScreenSurface;
+    private MappingSurface TabletSurface => _mapping.TabletSurface;
+    private ComboBox MonitorChoice => _mapping.MonitorChoice;
+    private Button CaptureButton => _mapping.CaptureButton;
+    private Button ApplyButton => _mapping.ApplyButton;
+    private StackPanel ScreenFields => _mapping.ScreenFields;
+    private StackPanel TabletFields => _mapping.TabletFields;
+    private TextBlock DeviceDetails => _mapping.DeviceDetails;
 
     public MainWindow()
     {
         InitializeComponent();
-        for (int number = 6; number <= 10; number++)
-            ShortcutTiles.Children.Add(new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(41, 53, 62)), Margin = new Thickness(4), Padding = new Thickness(12),
-                Child = new TextBlock { Text = number.ToString(), HorizontalAlignment = HorizontalAlignment.Center }
-            });
+        NativeWindowTheme.Attach(this);
+        try { if(File.Exists(_penProfilePath)) _penProfile=PenProfile.Load(_penProfilePath); }
+        catch(Exception ex) { SetStatus("Pen profile could not be loaded: "+ex.Message); }
+        RefreshPenBindings();
+        TestInk.PreviewStylusButtonDown += (_,e)=>ObservePenButton(e,true);
+        TestInk.PreviewStylusButtonUp += (_,e)=>ObservePenButton(e,false);
+        TestInk.PreviewKeyDown += (_,e)=> {
+            var key=e.Key==Key.System?e.SystemKey:e.Key;
+            _penEditor?.Observe("Keyboard event (device unverified)",$"{Keyboard.Modifiers} + {key}",true);
+        };
+        TestInk.PreviewMouseDown += (_,e)=> {
+            if(e.ChangedButton==MouseButton.Left) return;
+            _penEditor?.Observe(e.StylusDevice is null?"Mouse event (device unverified)":"Windows pen mouse event",e.ChangedButton.ToString(),true);
+        };
+        PenImage.Source=PenArtwork.Load();
+        _pressureTimer.Tick += (_,_) => {
+            if(_penContact && (_activePen is null || _activePen.InAir || !_activePen.InRange || !TestInk.IsStylusOver)) ReleasePressure();
+            _pressure.Advance(PressureTime);
+            if(TimelineCheck.IsChecked==true) RedrawPressure();
+        };
+        _pressureTimer.Start();
+        Deactivated += (_,_) => HidePenCursor();
+        _mapping = new MappingWindow();
+        _keys = new KeysWindow();
+        MonitorChoice.SelectionChanged += MonitorChanged;
+        CaptureButton.Click += CaptureClick;
+        _mapping.PresetButton.Click += CenterClick;
+        _mapping.FullTabletButton.Click += FullTabletClick;
+        _mapping.LoadButton.Click += LoadClick;
+        _mapping.SaveButton.Click += SaveClick;
+        ApplyButton.Click += ApplyClick;
+        _mapping.NextDisplayButton.Click += (_,_) => {
+            if(MonitorChoice.Items.Count>1) MonitorChoice.SelectedIndex=MonitorChoice.SelectedIndex<1 || MonitorChoice.SelectedIndex+1>=MonitorChoice.Items.Count?1:MonitorChoice.SelectedIndex+1;
+        };
         CreateFields(ScreenFields, _screenFields);
         CreateFields(TabletFields, _tabletFields);
         TestInk.DefaultDrawingAttributes = new DrawingAttributes
         {
-            Color = Color.FromRgb(25, 63, 55), Width = 3, Height = 3,
+            Color = Color.FromRgb(232,232,232), Width = 3, Height = 3,
             FitToCurve = true, IgnorePressure = false
         };
         ScreenSurface.AreaChanged += value => SelectionChanged(false, value);
@@ -45,6 +91,9 @@ public partial class MainWindow : Window
         Populate();
         Loaded += async (_, _) =>
         {
+            if (_started) return;
+            _started=true;
+            _mapping.Owner=this;_keys.Owner=this;
             string vendorPath = App.InitialSettingsPath ?? System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "MyTablet", "TSetting.ini");
             if (File.Exists(vendorPath))
             {
@@ -55,21 +104,41 @@ public partial class MainWindow : Window
             await RefreshDesktop(!App.SmokeTest || App.PreviewDirectory is not null);
             if (App.SmokeTest)
             {
-                foreach (StackPanel page in new[] { MappingPage, ButtonsPage, PressurePage, DevicePage })
-                {
-                    ShowPage(page, page == MappingPage ? "Your drawing space" : "Render check", "Read-only smoke test"); UpdateLayout();
-                    await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
-                    if (App.PreviewDirectory is not null)
-                    {
-                        Directory.CreateDirectory(App.PreviewDirectory);
-                        var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap((int)ActualWidth,(int)ActualHeight,96,96,PixelFormats.Pbgra32);
-                        bitmap.Render(this);
-                        var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
-                        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
-                        using var output = new FileStream(System.IO.Path.Combine(App.PreviewDirectory,page.Name+".png"),FileMode.CreateNew);
-                        encoder.Save(output);
-                    }
-                }
+                var cursorProbe=new PenCursorOverlay();
+                var tiltedDescription=new StylusPointDescription(new[] {
+                    new StylusPointPropertyInfo(StylusPointProperties.X),
+                    new StylusPointPropertyInfo(StylusPointProperties.Y),
+                    new StylusPointPropertyInfo(StylusPointProperties.NormalPressure),
+                    new StylusPointPropertyInfo(StylusPointProperties.XTiltOrientation,-9000,9000,StylusPointPropertyUnit.Degrees,100),
+                    new StylusPointPropertyInfo(StylusPointProperties.YTiltOrientation,-9000,9000,StylusPointPropertyUnit.Degrees,100)
+                });
+                if(!cursorProbe.Update(new StylusPoint(10,10,0.5f,tiltedDescription,new[]{4500,-3000})))
+                    throw new InvalidOperationException("Supported tilt properties were not recognized.");
+                if(cursorProbe.Update(new StylusPoint(10,10)))
+                    throw new InvalidOperationException("Missing tilt properties must use the tip-only fallback.");
+                await RenderPreview(this,"MainWindow");
+                var profileEditor=new PenBindingsWindow(_penProfile,_penProfilePath,true) {Owner=this};
+                profileEditor.Show();await RenderPreview(profileEditor,"PenCustomization");profileEditor.Close();
+                TimelineCheck.IsChecked=true;_pressure.Advance(PressureTime);RedrawPressure();
+                await RenderPreview(this,"ContinuousTimeline");TimelineCheck.IsChecked=false;
+                PressureTuningSlider.Value=-255;
+                if(PressureTuningSlider.Value!=-255) throw new InvalidOperationException("Slider minimum is incorrect.");
+                PressureTuningSlider.Value=255;
+                if(PressureTuningSlider.Value!=255) throw new InvalidOperationException("Slider maximum is incorrect.");
+                ResetPressureClick(this,new RoutedEventArgs());
+                if(PressureTuningSlider.Value!=0) throw new InvalidOperationException("Slider reset failed.");
+                _mapping.Show(); await RenderPreview(_mapping,"ScreenMapping");
+                AreaRect previousArea=_settings.TabletArea;
+                _mapping.PresetButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if(_settings.TabletArea==previousArea) throw new InvalidOperationException("Preset button did not update selection.");
+                _mapping.Close(); _mapping.Show();
+                if(TabletSurface.Area!=_settings.TabletArea) throw new InvalidOperationException("Mapping selection was lost when reopening.");
+                _settings.TabletArea=previousArea;_dirty=false;Populate();_mapping.Hide();
+                _keys.Show();
+                ((Button)_keys.KeyButtons.Children[9]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if(_keys.ButtonNumber.Text!="10" || _keys.KeySummary.Text!="Alt") throw new InvalidOperationException("Key selection did not update.");
+                ((Button)_keys.KeyButtons.Children[0]).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await RenderPreview(_keys,"DefinedKeys"); _keys.Hide();
                 Close();
             }
         };
@@ -81,8 +150,8 @@ public partial class MainWindow : Window
         string[] labels = ["Left", "Top", "Right", "Bottom"];
         for (int i = 0; i < fields.Length; i++)
         {
-            var group = new StackPanel { Width = 120, Margin = new Thickness(0, 0, 14, 0) };
-            group.Children.Add(new TextBlock { Text = labels[i], Foreground = new SolidColorBrush(Color.FromRgb(145, 160, 172)), FontSize = 12, Margin = new Thickness(0, 0, 0, 6) });
+            var group = new StackPanel { Width = 110, Margin = new Thickness(0, 0, 10, 0) };
+            group.Children.Add(new TextBlock { Text = labels[i], Foreground = (Brush)FindResource("MutedText"), FontSize = 12, Margin = new Thickness(0, 0, 0, 6) });
             var input = new TextBox(); fields[i] = input;
             input.TextChanged += FieldChanged;
             group.Children.Add(input); host.Children.Add(group);
@@ -179,9 +248,12 @@ public partial class MainWindow : Window
         _capturing = true;
         CaptureButton.IsEnabled = false;
         bool hidden = capture && IsVisible;
+        bool hideMapping = capture && _mapping.IsVisible;
         try
         {
-            if (hidden) { Hide(); await Task.Delay(160); }
+            if (hidden) Hide();
+            if (hideMapping) _mapping.Hide();
+            if (hidden || hideMapping) await Task.Delay(160);
             _desktop = await Task.Run(() => DesktopCapture.Read(capture));
             ScreenSurface.Desktop = _desktop;
             _updating = true;
@@ -199,7 +271,8 @@ public partial class MainWindow : Window
         finally
         {
             _updating = false;
-            if (hidden) { Show(); Activate(); }
+            if (hidden) Show();
+            if (hideMapping) { _mapping.Show(); _mapping.Activate(); }
             CaptureButton.IsEnabled = true;
             _capturing = false;
         }
@@ -222,11 +295,6 @@ public partial class MainWindow : Window
 
     private void FullTabletClick(object sender, RoutedEventArgs e) => SelectionChanged(true,AreaRect.Full);
 
-    private void FullClick(object sender, RoutedEventArgs e)
-    {
-        _settings.ScreenArea = AreaRect.Full; _settings.TabletArea = AreaRect.Full;
-        _dirty = true; Populate(); SetStatus("Full area selected · Unsaved local changes");
-    }
     private void CenterClick(object sender, RoutedEventArgs e)
     {
         AreaRect value = MappingGeometry.TabletPreset(_tabletPresetIndex);
@@ -273,7 +341,14 @@ public partial class MainWindow : Window
         var answer = MessageBox.Show(this, "Save your local settings changes before continuing?", "Unsaved settings", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
         return answer == MessageBoxResult.No || (answer == MessageBoxResult.Yes && SaveSettings());
     }
-    private void GuardClosing(object? sender, CancelEventArgs e) { if (!MayDiscard()) e.Cancel = true; }
+    private void GuardClosing(object? sender, CancelEventArgs e)
+    {
+        if(!MayDiscard()) { e.Cancel=true;return; }
+        _pressureTimer.Stop();
+        _penEditor?.Close();
+        _mapping.AllowClose=true;_keys.AllowClose=true;
+        _mapping.Close();_keys.Close();
+    }
 
     private async Task RefreshDevices()
     {
@@ -283,14 +358,15 @@ public partial class MainWindow : Window
         {
             _devices = await Task.Run(() => WindowsHid.Enumerate());
             HidTablet[] eligible = _devices.Where(WindowsHid.IsEligible).ToArray();
-            ConnectionBadge.Text = eligible.Length == 1 ? "T906 connected" : _devices.Count > 0 ? "Tablet detected" : "Tablet disconnected";
+            ConnectionBadge.Text = eligible.Length == 1 ? "Tablet connected" : _devices.Count > 0 ? "Tablet detected" : "Tablet disconnected";
+            ConnectionPanel.Background = new SolidColorBrush(eligible.Length==1 ? Color.FromRgb(41,41,41) : Color.FromRgb(33,33,33));
+            ConnectionBadge.Foreground = new SolidColorBrush(eligible.Length==1 ? Color.FromRgb(214,214,214) : Color.FromRgb(166,166,166));
             DeviceDetails.Text = _devices.Count == 0 ? "No supported T906 HID collection found.\nConnect your tablet and refresh." : string.Join("\n\n", _devices.Select(d => $"{d.Product}\nUSB {d.VendorId:X4}:{d.ProductId:X4}  ·  Version {d.Version:X4}\nFeature report length: {d.FeatureLength}\n{d.Path}"));
             ApplyButton.IsEnabled = eligible.Length == 1;
         }
         catch (Exception ex) { ConnectionBadge.Text = "Device check failed"; DeviceDetails.Text = ex.Message; }
         finally { _refreshing = false; }
     }
-    private async void RefreshClick(object sender, RoutedEventArgs e) => await RefreshDevices();
 
     private async void ApplyClick(object sender, RoutedEventArgs e)
     {
@@ -310,16 +386,18 @@ public partial class MainWindow : Window
     private void PenInput(object sender, StylusEventArgs e)
     {
         if (e.StylusDevice is null || e.StylusDevice.TabletDevice.Type != TabletDeviceType.Stylus || e.StylusDevice.InAir) return;
+        UpdatePenCursor(e);
         if (!e.StylusDevice.TabletDevice.TabletHardwareCapabilities.HasFlag(TabletHardwareCapabilities.SupportsPressure))
         {
-            PressureValue.Text = "Windows is not exposing pressure for this pen";
+            PressureValue.ToolTip = "Windows is not exposing pressure for this pen";
             return;
         }
         foreach (StylusPoint point in e.GetStylusPoints(TestInk))
         {
-            double value = Math.Clamp(point.PressureFactor, 0, 1); _pressure.Enqueue(value);
-            while (_pressure.Count > 200) _pressure.Dequeue();
-            PressureValue.Text = $"{value:P0} · Windows pen pressure";
+            double value = Math.Clamp(point.PressureFactor, 0, 1);
+            _activePen=e.StylusDevice;_penContact=true;
+            _pressure.Record(value,PressureTime);
+            PressureValue.Text = ((int)Math.Round(value*8192)).ToString(); PressureGauge.Value=value*8192;
         }
         RedrawPressure();
     }
@@ -327,26 +405,99 @@ public partial class MainWindow : Window
     {
         if (e.StylusDevice?.TabletDevice.Type != TabletDeviceType.Stylus
             || !e.StylusDevice.TabletDevice.TabletHardwareCapabilities.HasFlag(TabletHardwareCapabilities.SupportsPressure)) return;
-        _pressure.Enqueue(0); while (_pressure.Count > 200) _pressure.Dequeue(); RedrawPressure();
-        PressureValue.Text = "Pen lifted · 0%";
+        ReleasePressure();
     }
+    private void ReleasePressure()
+    {
+        if(_penContact) _pressure.Record(0,PressureTime);
+        _penContact=false;PressureValue.Text="0";PressureGauge.Value=0;RedrawPressure();
+    }
+    private void UpdatePenCursor(StylusEventArgs e)
+    {
+        var points=e.GetStylusPoints(TestInk);
+        if(points.Count==0) return;
+        bool tilt=PenCursor.Update(points[^1]);
+        TestInk.ToolTip=tilt ? "Windows pen tilt" : "Pen tilt is not exposed by Windows; showing tip position only.";
+        TestInk.UseCustomCursor=true;TestInk.Cursor=Cursors.None;
+    }
+    private void PenHover(object sender,StylusEventArgs e)
+    {
+        if(e.StylusDevice?.TabletDevice.Type!=TabletDeviceType.Stylus) return;
+        UpdatePenCursor(e);ReleasePressure();
+    }
+    private void PenLeave(object sender,StylusEventArgs e) => HidePenCursor();
+    private void HidePenCursor()
+    {
+        PenCursor.Visibility=Visibility.Collapsed;TestInk.UseCustomCursor=false;TestInk.ClearValue(CursorProperty);ReleasePressure();
+    }
+    private void PressureModeChanged(object sender,RoutedEventArgs e) { if(PressureChart is not null) RedrawPressure(); }
+    private void ResetPressureClick(object sender,RoutedEventArgs e) => PressureTuningSlider.Value=0;
     private void RedrawPressure()
     {
         double width = PressureChart.ActualWidth, height = PressureChart.ActualHeight;
-        double[] values = _pressure.ToArray(); var points = new PointCollection();
-        for (int i = 0; i < values.Length; i++) points.Add(new Point(i / 199.0 * width, height - values[i] * (height - 8) - 4));
+        var values = TimelineCheck.IsChecked==true ? _pressure.Timeline : _pressure.Events;
+        var points = new PointCollection();
+        for (int i = 0; i < values.Count; i++) points.Add(new Point(i / 199.0 * width, height - values[i] * (height - 8) - 4));
+        if(values.Count==0) { points.Add(new Point(0,height-2));points.Add(new Point(width,height-2)); }
         PressureLine.Points = points;
     }
-    private void ClearClick(object sender, RoutedEventArgs e) { TestInk.Strokes.Clear(); _pressure.Clear(); PressureLine.Points.Clear(); PressureValue.Text = "Waiting for pen input"; }
+    private void ClearClick(object sender, RoutedEventArgs e) { TestInk.Strokes.Clear(); _pressure.Clear(PressureTime); _penContact=false; RedrawPressure(); PressureValue.Text = "0"; PressureGauge.Value=0; }
 
-    private void ShowPage(StackPanel page, string title, string subtitle)
+    private async Task RenderPreview(Window window,string name)
     {
-        foreach (StackPanel candidate in new[] { MappingPage, ButtonsPage, PressurePage, DevicePage }) candidate.Visibility = candidate == page ? Visibility.Visible : Visibility.Collapsed;
-        PageTitle.Text = title; PageSubtitle.Text = subtitle;
+        window.UpdateLayout();
+        await Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+        if(App.PreviewDirectory is null) return;
+        Directory.CreateDirectory(App.PreviewDirectory);
+        var visual=(FrameworkElement)window.Content;
+        var bitmap=new System.Windows.Media.Imaging.RenderTargetBitmap((int)Math.Ceiling(visual.ActualWidth),(int)Math.Ceiling(visual.ActualHeight),96,96,PixelFormats.Pbgra32);
+        bitmap.Render(visual);
+        var encoder=new System.Windows.Media.Imaging.PngBitmapEncoder();
+        encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(bitmap));
+        using var output=new FileStream(System.IO.Path.Combine(App.PreviewDirectory,name+".png"),FileMode.CreateNew);
+        encoder.Save(output);
     }
-    private void MappingClick(object sender, RoutedEventArgs e) => ShowPage(MappingPage, "Your drawing space", "Choose where your pen moves, and where it lands.");
-    private void ButtonsClick(object sender, RoutedEventArgs e) => ShowPage(ButtonsPage, "Make every button count", "Existing assignments work; reconstruction is still in progress.");
-    private void PressureClick(object sender, RoutedEventArgs e) => ShowPage(PressurePage, "Find your natural stroke", "Test the pressure Windows receives from your pen.");
-    private void DeviceClick(object sender, RoutedEventArgs e) => ShowPage(DevicePage, "Know your tablet", "Read-only connection details and verified configuration scope.");
-    private void SetStatus(string message) => StatusText.Text = message;
+    private void MappingClick(object sender,RoutedEventArgs e) { if(_mapping.WindowState==WindowState.Minimized) _mapping.WindowState=WindowState.Normal; _mapping.Show(); _mapping.Activate(); }
+    private void RefreshPenBindings()
+    {
+        UpperBindingButton.Content="Upper: "+_penProfile.Upper.Label;
+        LowerBindingButton.Content="Lower: "+_penProfile.Lower.Label;
+        UpperBindingButton.ToolTip=_penProfile.Upper.Label+" · draft profile";
+        LowerBindingButton.ToolTip=_penProfile.Lower.Label+" · draft profile";
+    }
+    private void OpenPenBindings(bool upper)
+    {
+        if(_penEditor is null)
+        {
+            _penEditor=new PenBindingsWindow(_penProfile,_penProfilePath,upper) {Owner=this};
+            _penEditor.ProfileSaved += profile=> { _penProfile=profile;RefreshPenBindings(); };
+            _penEditor.Closed += (_,_)=>_penEditor=null;
+        }
+        else _penEditor.SelectButton(upper);
+        if(_penEditor.WindowState==WindowState.Minimized) _penEditor.WindowState=WindowState.Normal;
+        _penEditor.Show();_penEditor.Activate();
+    }
+    private void PenBindingsClick(object sender,RoutedEventArgs e)=>OpenPenBindings(true);
+    private void UpperBindingClick(object sender,RoutedEventArgs e)=>OpenPenBindings(true);
+    private void LowerBindingClick(object sender,RoutedEventArgs e)=>OpenPenBindings(false);
+    private void ObservePenButton(StylusButtonEventArgs e,bool pressed)
+    {
+        _penEditor?.Observe(e.StylusButton.Name,e.StylusButton.Guid.ToString(),pressed);
+        SetStatus($"Pen button: {e.StylusButton.Name} {(pressed?"pressed":"released")}. Vendor assignment remains active.");
+    }
+    private void ButtonsClick(object sender,RoutedEventArgs e) { if(_keys.WindowState==WindowState.Minimized) _keys.WindowState=WindowState.Normal; _keys.Show(); _keys.Activate(); }
+    private async void RefreshConnection(object sender,MouseButtonEventArgs e) => await RefreshDevices();
+    private void WebsiteClick(object sender,RoutedEventArgs e)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://www.ping-it.cn") { UseShellExecute=true }); }
+        catch(Exception ex) { MessageBox.Show(this,ex.Message,"Website could not be opened",MessageBoxButton.OK,MessageBoxImage.Information); }
+    }
+    private void RestoreClick(object sender,RoutedEventArgs e)
+    {
+        var defaults=TabletSettings.Defaults();
+        _settings.ScreenArea=defaults.ScreenArea;_settings.TabletArea=defaults.TabletArea;
+        _settings.InkMode=defaults.InkMode;_settings.LeftHandMode=defaults.LeftHandMode;
+        _dirty=true;Populate();SetStatus("Mapping and mode defaults restored locally. Save or apply from Screen Mapping.");
+    }
+    private void SetStatus(string message) { StatusText.Text=message;ConnectionPanel.ToolTip=message; }
 }

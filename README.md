@@ -2,7 +2,7 @@
 
 Vinsa Studio is a .NET 10 / WPF Windows configuration app, backed by an evidence-based reconstruction of the tablet's mapping protocol. Research scripts preserve the extraction workflow and independent protocol verification. REA/Ghidra was used to analyze the supplied native Delphi `TabletService.exe`.
 
-This is new implementation source, not the original vendor source or a complete replacement for the vendor application. Mapping and mode reports are reconstructed; pen input, pressure curves, tilt, hotkey dispatch, Wintab/Windows Ink integration, and full device initialization are not implemented. Windows continues to provide the tablet's existing HID input support.
+This is new implementation source, not the original vendor source or a complete replacement for the vendor application. Mapping and mode reports are reconstructed; raw pen input, device pressure curves, raw tilt decoding, hotkey dispatch, Wintab/Windows Ink integration, and full device initialization are not implemented. Windows continues to provide the tablet's existing HID input support.
 
 ## Windows desktop app
 
@@ -12,10 +12,12 @@ This is new implementation source, not the original vendor source or a complete 
 
 This builds into the ignored `build/VinsaStudio/` directory and opens the native Windows app. Building requires the .NET 10 SDK; running the published app requires the .NET 10 Windows Desktop runtime. It does not require Python. Run the launcher again without `-Rebuild` to reuse the build. It reads the installed vendor INI when available, otherwise the supplied snapshot; `-SettingsPath` selects another file.
 
-- Mapping: a desktop snapshot in the actual monitor layout, display selection, movable regions with eight resize handles, a tablet illustration, exact coordinates, presets, Ink/handedness, and saving a new settings copy. Refresh preview takes a new snapshot; it stays in memory during normal use. Existing files are never overwritten.
+The main window keeps the original MyTablet layout with a monochrome dark theme and native Windows minimize, maximize and close buttons: the original pen bitmap and its connector lines sit beside custom-key and pressure controls, with the pressure graph on the left and the drawing tester on the right. Screen Mapping and Defined Keys open separate owned windows. The bitmap is embedded directly from the preserved vendor file and displayed with a transparent background in grayscale; no extra image copy is stored in source.
+
+- Mapping: a desktop snapshot in the actual monitor layout, display selection, movable regions with eight resize handles, a tablet illustration, exact coordinates, presets, and saving a new settings copy. Ink/handedness stay on the main window. Refresh preview takes a new snapshot; it stays in memory during normal use. Existing files are never overwritten.
 - Device: read-only HID detection. Applying mapping is a separate explicit action: only three reconstructed reports, not full vendor initialization. Writes are not yet hardware-validated; automatic startup/reconnection writes are not enabled.
-- Pressure & ink: drawing canvas and live history from Windows stylus pressure. Mouse/hover input is excluded from the graph and Windows must report pressure support. Actual pen testing is still needed; unavailable pressure is not replaced with simulated values.
-- Buttons: ten-key layout and reported pen assignments. Hardware assignment editing and vendor pressure fine tuning are not yet implemented.
+- Pressure & ink: drawing canvas and live history from Windows stylus pressure. A toggle above the graph selects pen-event history or a continuously scrolling ten-second timeline (20 Hz), including idle time. Mouse/hover input is excluded from the graph and Windows must report pressure support. Actual pen testing is still needed; unavailable pressure is not replaced with simulated values. The drawing cursor follows supported Windows X/Y tilt properties; devices without exposed tilt show only a tip marker. Actual T906 tilt availability still needs pen testing.
+- Buttons: the original ten-key dialog layout displays vendor default assignments for reference, with click-to-select highlighting. Current device assignments are not decoded. Pen button customization saves a global draft profile with separate upper/lower actions (shortcut, mouse click or Disabled). Shortcut capture supports Ctrl/Shift/Alt/Win. Profiles live at `%LOCALAPPDATA%/VinsaStudio/pen-profile.json`; Save profile does not apply them to devices or other apps. The editor includes a tester input monitor; keyboard/mouse events without a verified device identity are labelled accordingly. Global interception and device application are not implemented. The pressure fine-tune slider is a local preview from −255 to +255 with reset to zero; it does not change device pressure or the Windows pressure graph. Restore default resets only the reconstructed mapping/mode fields locally.
 
 The app manifest uses `asInvoker`: it does not request administrator privileges. This is separate from publisher signing/reputation; the current build is not code-signed.
 
@@ -29,7 +31,7 @@ dotnet build src/VinsaStudio -c Release
 ./build/VinsaStudio/VinsaStudio.exe --smoke-test --settings downloads/windows/installed/MyTablet/TSetting.ini
 ```
 
-The backend passes 30 checks, including 9,000 drag/resize scenarios. The GUI smoke test renders all four pages without applying settings. Automated tests do not verify real pen pressure or hardware writes.
+The backend passes 47 checks, including 9,000 drag/resize scenarios and fixed-rate pressure-history tests. The GUI smoke test renders the main window and both dialogs, checks slider bounds/reset, both graph modes, preset/key selection and reopening, and does not apply settings. Automated tests do not verify real pen pressure or hardware writes.
 
 The optional independent oracle compares .NET encoders against bounded emulation of the vendor's actual x86 packing instructions. It requires Python and Unicorn only for research verification:
 

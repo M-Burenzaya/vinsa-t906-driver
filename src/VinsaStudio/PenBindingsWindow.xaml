@@ -1,0 +1,14 @@
+<Window x:Class="VinsaStudio.PenBindingsWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Pen customization" Width="620" Height="560" MinWidth="620" MinHeight="560" Background="{StaticResource WindowBackground}" FontFamily="Segoe UI" FontSize="14" WindowStartupLocation="CenterOwner">
+  <Border Background="{StaticResource WindowBackground}"><Grid Margin="20"><Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition/></Grid.ColumnDefinitions>
+    <Image x:Name="PenArtworkImage" Width="78" Height="370" VerticalAlignment="Top" Margin="0,15,0,0"/>
+    <Grid Grid.Column="1" Margin="20,0,0,0"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+      <TextBlock Text="Pen buttons" FontSize="20" FontWeight="SemiBold"/>
+      <StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,16,0,18"><Button x:Name="UpperButton" Content="Upper button" Width="170" Height="34" Click="UpperClick"/><Button x:Name="LowerButton" Content="Lower button" Width="170" Height="34" Margin="10,0,0,0" Click="LowerClick"/></StackPanel>
+      <StackPanel Grid.Row="2"><TextBlock Text="Action" Foreground="{StaticResource MutedText}" Margin="0,0,0,7"/><ComboBox x:Name="ActionChoice" Height="32" SelectionChanged="ActionChanged"/></StackPanel>
+      <StackPanel Grid.Row="3" Margin="0,16,0,0"><TextBlock Text="Keyboard shortcut" Foreground="{StaticResource MutedText}" Margin="0,0,0,7"/><TextBox x:Name="ShortcutCapture" Height="34" IsReadOnly="True" PreviewKeyDown="CaptureShortcut" ToolTip="Click here and press your shortcut, for example Ctrl+Shift+Z or Space."/><TextBlock Text="Click the shortcut field and press the keys you want." Foreground="{StaticResource MutedText}" FontSize="11" Margin="0,6,0,0"/></StackPanel>
+      <StackPanel Grid.Row="4" Margin="0,16,0,0"><TextBlock Text="Input monitor" Foreground="{StaticResource MutedText}"/><TextBlock x:Name="InputMonitor" Text="Hover over the drawing tester and press a side button." FontSize="12" TextWrapping="Wrap" Margin="0,5,0,0"/></StackPanel>
+      <StackPanel Grid.Row="5" VerticalAlignment="Bottom" Margin="0,12,0,12"><TextBlock Text="Draft profile · not applied to devices or other apps" Foreground="{StaticResource MutedText}" FontSize="12"/><TextBlock x:Name="ProfileStatus" Text="Profiles save in your Windows user folder." Foreground="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,5,0,0"/></StackPanel>
+      <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right"><Button Content="Reset" Click="ResetClick" Margin="0,0,8,0"/><Button Content="Save profile" Click="SaveClick" Padding="16,7"/></StackPanel>
+    </Grid>
+  </Grid></Border>
+</Window>

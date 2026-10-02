@@ -9,7 +9,7 @@ namespace VinsaStudio.Controls;
 /// <summary>Desktop/tablet preview with selection movement and eight resize handles.</summary>
 public sealed class MappingSurface : FrameworkElement
 {
-    private static readonly Brush Mint=new SolidColorBrush(Color.FromRgb(133,226,195));
+    private static readonly Brush SelectionOutline=new SolidColorBrush(Color.FromRgb(214,214,214));
     private AreaRect area=AreaRect.Full, startArea=AreaRect.Full;
     private AreaHandle drag;
     private Point start;
@@ -29,31 +29,32 @@ public sealed class MappingSurface : FrameworkElement
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
-        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(15,22,28)),null,new Rect(0,0,ActualWidth,ActualHeight),10,10);
+        dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(30,30,30)),null,new Rect(0,0,ActualWidth,ActualHeight),0,0);
         if (ActualWidth<80 || ActualHeight<80) return;
-        double ratio=IsTablet ? 1.5 : desktop is { Width:>0,Height:>0 } ? desktop.Width/(double)desktop.Height : 16.0/9;
-        double spaceW=ActualWidth-(IsTablet?126:46), spaceH=ActualHeight-(IsTablet?46:68);
+        // Illustration proportions match the original UI; these are not physical dimensions.
+        double ratio=desktop is { Width:>0,Height:>0 } ? desktop.Width/(double)desktop.Height : 16.0/9;
+        double spaceW=ActualWidth-46, spaceH=ActualHeight-68;
         double width=Math.Min(spaceW,spaceH*ratio),height=width/ratio;
-        active=new Rect((ActualWidth-width)/2+(IsTablet?25:0),(ActualHeight-height)/2-(IsTablet?0:12),width,height);
+        active=new Rect((ActualWidth-width)/2,(ActualHeight-height)/2-12,width,height);
         if (IsTablet)
         {
-            Rect body=new(active.Left-68,active.Top-20,active.Width+88,active.Height+40);
-            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(39,49,59)),new Pen(new SolidColorBrush(Color.FromRgb(70,82,93)),1),body,18,18);
+            // Match the supplied original silhouette: 510x340 body, 385x260
+            // writing surface, and five unsegmented key bars. These are UI units.
+            double scale=Math.Min(ActualWidth/841,ActualHeight/346);
+            Rect body=new((ActualWidth-510*scale)/2+5*scale,(ActualHeight-340*scale)/2,510*scale,340*scale);
+            active=new Rect(body.Left+86*scale,body.Top+40*scale,385*scale,260*scale);
+            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(44,44,44)),new Pen(new SolidColorBrush(Color.FromRgb(83,83,83)),1),body,10*scale,10*scale);
             for(int i=0;i<5;i++)
             {
-                Rect key=new(body.Left+14,body.Top+25+i*24,39,16);
-                dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(80,94,105)),null,key,3,3);
-                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(32,40,49)),1),new Point(key.Left+19,key.Top),new Point(key.Left+19,key.Bottom));
+                Rect key=new(body.Left+20*scale,body.Top+(60+i*24)*scale,49*scale,19*scale);
+                dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(80,80,80)),new Pen(new SolidColorBrush(Color.FromRgb(24,24,24)),1),key);
             }
-            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(18,26,33)),new Pen(new SolidColorBrush(Color.FromRgb(87,103,114)),1),active,3,3);
-            for(int i=1;i<6;i++)
-                dc.DrawLine(new Pen(new SolidColorBrush(Color.FromRgb(32,43,51)),1),new Point(active.Left+active.Width*i/6,active.Top),new Point(active.Left+active.Width*i/6,active.Bottom));
-            Text(dc,"T906",body.Left+14,body.Bottom-24,10,new SolidColorBrush(Color.FromRgb(145,160,172)));
+            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(62,62,62)),new Pen(new SolidColorBrush(Color.FromRgb(83,83,83)),1),active,3,3);
         }
         else
         {
-            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(38,48,58)),null,new Rect(active.Left-8,active.Top-8,active.Width+16,active.Height+16),7,7);
-            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(7,10,14)),null,active);
+            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(53,53,53)),null,new Rect(active.Left-8,active.Top-8,active.Width+16,active.Height+16),7,7);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(10,10,10)),null,active);
             if(desktop?.Image is {} image) dc.DrawImage(image,active);
             if(desktop is not null)
                 for(int i=0;i<desktop.Monitors.Count;i++)
@@ -62,23 +63,23 @@ public sealed class MappingSurface : FrameworkElement
                     Rect box=new(active.Left+(m.X-desktop.X)/(double)desktop.Width*active.Width,
                         active.Top+(m.Y-desktop.Y)/(double)desktop.Height*active.Height,
                         m.Width/(double)desktop.Width*active.Width,m.Height/(double)desktop.Height*active.Height);
-                    dc.DrawRectangle(null,new Pen(new SolidColorBrush(Color.FromRgb(121,139,153)),1),box);
-                    dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(225,18,27,34)),null,new Rect(box.Left+5,box.Top+5,95,23),4,4);
+                    dc.DrawRectangle(null,new Pen(new SolidColorBrush(Color.FromRgb(139,139,139)),1),box);
+                    dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromArgb(225,27,27,27)),null,new Rect(box.Left+5,box.Top+5,95,23),4,4);
                     Text(dc,$"Display {i+1}"+(m.Primary?" · main":""),box.Left+12,box.Top+9,10,Brushes.White);
                 }
-            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(54,67,76)),null,new Rect(active.Left+active.Width*.44,active.Bottom+8,active.Width*.12,12));
-            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(54,67,76)),null,new Rect(active.Left+active.Width*.33,active.Bottom+20,active.Width*.34,5),2,2);
+            dc.DrawRectangle(new SolidColorBrush(Color.FromRgb(79,79,79)),null,new Rect(active.Left+active.Width*.44,active.Bottom+8,active.Width*.12,12));
+            dc.DrawRoundedRectangle(new SolidColorBrush(Color.FromRgb(79,79,79)),null,new Rect(active.Left+active.Width*.33,active.Bottom+20,active.Width*.34,5),2,2);
         }
         Rect selection=Selection();
-        dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(48,133,226,195)),null,selection);
+        dc.DrawRectangle(new SolidColorBrush(Color.FromArgb(20,255,255,255)),null,selection);
         dc.PushClip(new RectangleGeometry(selection));
         for(double x=selection.Left-selection.Height;x<selection.Right;x+=10)
-            dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(65,210,246,234)),.8),new Point(x,selection.Bottom),new Point(x+selection.Height,selection.Top));
+            dc.DrawLine(new Pen(new SolidColorBrush(Color.FromArgb(75,205,205,205)),.8),new Point(x,selection.Bottom),new Point(x+selection.Height,selection.Top));
         dc.Pop();
-        dc.DrawRectangle(null,new Pen(Mint,2),selection);
+        dc.DrawRectangle(null,new Pen(SelectionOutline,2),selection);
         foreach(var (point,handle) in Handles(selection))
-            dc.DrawRectangle(Mint,new Pen(new SolidColorBrush(Color.FromRgb(13,36,30)),1),new Rect(point.X-4,point.Y-4,8,8));
-        if(IsKeyboardFocused) dc.DrawRoundedRectangle(null,new Pen(Mint,1),new Rect(1,1,ActualWidth-2,ActualHeight-2),10,10);
+            dc.DrawRectangle(SelectionOutline,new Pen(new SolidColorBrush(Color.FromRgb(36,36,36)),1),new Rect(point.X-4,point.Y-4,8,8));
+        if(IsKeyboardFocused) dc.DrawRoundedRectangle(null,new Pen(SelectionOutline,1),new Rect(1,1,ActualWidth-2,ActualHeight-2),10,10);
     }
     private void Text(DrawingContext dc,string value,double x,double y,double size,Brush brush)
     {

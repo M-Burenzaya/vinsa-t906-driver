@@ -21,6 +21,32 @@ Check(settings.ToBytes().SequenceEqual(File.ReadAllBytes(vendor)), "Vendor setti
 Check(settings.TabletArea == new AreaRect(650, 650, 3500, 3500), "Saved tablet mapping.");
 Check(settings.ScreenArea == new AreaRect(1753, 0, 4095, 4095), "Saved screen mapping.");
 var reports = FeatureProtocol.Plan(settings, 0x2023);
+PenProfile.Defaults.Validate();
+Check(PenProfile.Defaults.Upper.Label=="Ctrl + Z" && PenProfile.Defaults.Lower.Label=="Right click","Default pen draft matches observed vendor assignments.");
+Check(new PenBinding(PenAction.Shortcut,90,ShortcutModifiers.Control|ShortcutModifiers.Shift).Label=="Ctrl + Shift + Z","Display a custom shortcut chord.");
+Reject(()=>new PenBinding(PenAction.Shortcut).Validate(),"Reject missing shortcut key.");
+Reject(()=>new PenBinding(PenAction.Shortcut,17).Validate(),"Reject incomplete modifier-only shortcuts.");
+Reject(()=>new PenBinding(PenAction.RightClick,90).Validate(),"Reject keyboard data attached to mouse actions.");
+Reject(()=>new PenProfile(2,PenProfile.Defaults.Upper,PenProfile.Defaults.Lower).Validate(),"Reject unknown profile format.");
+var history=new PressureHistory();
+history.Record(1,0);
+history.Advance(0.049);
+Check(history.Timeline.All(v=>v==0),"Timeline waits for the fixed sample boundary.");
+history.Advance(0.05);
+Check(history.Timeline[^1]==1 && history.Timeline.Count(v=>v==1)==1,"Timeline samples pressure at 50 ms intervals.");
+history.Record(0,0.1);
+var frozenEvents=history.Events.ToArray();
+history.Advance(10.2);
+Check(history.Timeline.All(v=>v==0),"A released stroke ages completely off the ten-second timeline without new pen events.");
+Check(history.Events.SequenceEqual(frozenEvents),"Event history stays unchanged during idle time.");
+history.Record(0.6,10.2);history.Advance(40);
+Check(history.Timeline.Count==200 && history.Timeline.All(v=>v==0.6),"Stationary contact holds its last pressure; long timer gaps stay bounded.");
+for(int i=0;i<1000;i++) history.Record(i/1000.0,40);
+Check(history.Events.Count==200 && history.Events[^1]==0.999,"Event history retains the newest 200 samples.");
+history.Clear(40);
+Check(history.Events.Count==0 && history.Timeline.All(v=>v==0),"Clear resets both graph modes.");
+Reject(()=>history.Record(double.NaN,40),"Reject non-finite pen pressure.");
+Reject(()=>history.Advance(-1),"Reject negative graph time.");
 Check(Convert.ToHexString(reports[0]) == "0807228A8ABB2222", "Saved tablet report packing.");
 Check(Convert.ToHexString(reports[1]) == "0806010000000000", "Firmware version ink override.");
 Check(Convert.ToHexString(reports[2]) == "0801D9269600FFF0", "Saved screen report packing.");
@@ -33,6 +59,12 @@ var temporary = Path.Combine(Path.GetTempPath(), "vinsa-core-checks-" + Guid.New
 Directory.CreateDirectory(temporary);
 try
 {
+    var profilePath=Path.Combine(temporary,"profiles","pen.json");
+    var custom=PenProfile.Defaults with {Upper=new(PenAction.Shortcut,32),Lower=new(PenAction.MiddleClick)};
+    custom.Save(profilePath);
+    Check(PenProfile.Load(profilePath)==custom,"Round-trip custom pen profile without vendor settings.");
+    PenProfile.Defaults.Save(profilePath);
+    Check(PenProfile.Load(profilePath)==PenProfile.Defaults,"Replace an existing local profile atomically.");
     var file = Path.Combine(temporary, "settings.ini");
     var bytes = Encoding.Latin1.GetBytes("\u00ef\u00bb\u00bf;Unknown \u00ff bytes\r\r\n" + Encoding.ASCII.GetString(TabletSettings.Defaults().ToBytes())
         .Replace("Smoothness=0", "Smoothness = 0005  ") + "[Other]\nUnknown=anything\n");
